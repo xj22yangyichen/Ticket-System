@@ -4,7 +4,7 @@
 #include "train.hpp"
 #include "order.hpp"
 #include "b_plus_tree.hpp"
-#include <map>
+#include "map.hpp"
 
 namespace sjtu {
 class TrainSystem {
@@ -16,8 +16,8 @@ private:
   // key: (train_id, date), value: SeatStatus
   b_plus_tree<pair<my_string, int>, SeatStatus> seats_;
 
-  std::map<my_string, vector<pair<my_string, int>>> station_cache_map_;
-  std::map<my_string, Train> train_cache_;
+  map<my_string, vector<pair<my_string, int>>> station_cache_map_;
+  map<my_string, Train> train_cache_;
 
   const vector<pair<my_string, int>> &GetStations(const my_string &station);
   const Train &GetTrain(const my_string &train_id);

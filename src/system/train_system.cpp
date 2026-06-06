@@ -68,7 +68,8 @@ namespace sjtu {
       return false;
     }
     trains_.erase(train_id, train);
-    train_cache_.erase(train_id);
+    auto cache_it = train_cache_.find(train_id);
+    if (cache_it != train_cache_.end()) train_cache_.erase(cache_it);
     return true;
   }
 
@@ -86,7 +87,8 @@ namespace sjtu {
     train.release();
     trains_.erase(train_id, old_train);
     trains_.insert(train_id, train);
-    train_cache_.erase(train_id);
+    auto cache_it2 = train_cache_.find(train_id);
+    if (cache_it2 != train_cache_.end()) train_cache_.erase(cache_it2);
     station_cache_map_.clear();
     for (int i = 0; i < train.get_station_num(); ++i) {
       stations_.insert(train.get_station(i), {train_id, i});

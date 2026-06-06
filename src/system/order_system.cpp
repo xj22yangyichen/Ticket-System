@@ -7,16 +7,12 @@ namespace sjtu {
   void TrainSystem::buy_ticket(int timestamp, const my_string &username, const my_string &train_id, int date, 
     const my_string &from, const my_string &to, int num_tickets, bool waitlist_willness) {
       int from_index = -1, to_index = -1;
-      auto cache_it = train_cache_.find(train_id);
-      if (cache_it == train_cache_.end()) {
-        auto trains = trains_.find(train_id);
-        if (trains.empty()) {
-          std::cout << "-1" << '\n';
-          return;
-        }
-        cache_it = train_cache_.insert({train_id, trains[0]}).first;
+      const Train *train_ptr;
+      if (!cache_train(train_id, train_ptr)) {
+        std::cout << "-1" << '\n';
+        return;
       }
-      const auto &train = cache_it->second;
+      const auto &train = *train_ptr;
       if (seats_.find({train_id, train.get_sales_date(0)}).empty()) {
         std::cout << "-1" << '\n';
         return;

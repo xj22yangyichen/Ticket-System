@@ -21,6 +21,7 @@ private:
 
   const vector<pair<my_string, int>> &GetStations(const my_string &station);
   const Train &GetTrain(const my_string &train_id);
+  bool cache_train(const my_string &train_id, const Train *&out_train);
 
   struct TicketInfo {
     my_string train_id_;
@@ -76,6 +77,7 @@ public:
   void refund_ticket(const my_string &username, int nth = 1);
 
   void clear();
+  void clear_caches();
 };
 }
 

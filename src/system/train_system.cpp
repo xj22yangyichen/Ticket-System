@@ -3,10 +3,16 @@
 #include "algorithm.hpp"
 
 namespace sjtu {
+  static const int kMaxTrainCache = 1500;
+  static const int kMaxStationCache = 1000;
+
   const vector<pair<my_string, int>> &TrainSystem::GetStations(const my_string &station) {
     auto it = station_cache_map_.find(station);
     if (it != station_cache_map_.end()) {
       return it->second;
+    }
+    if (station_cache_map_.size() >= kMaxStationCache) {
+      station_cache_map_.clear();
     }
     auto result = stations_.find(station);
     auto inserted = station_cache_map_.insert({station, result});
@@ -18,9 +24,30 @@ namespace sjtu {
     if (it != train_cache_.end()) {
       return it->second;
     }
+    if (train_cache_.size() >= kMaxTrainCache) {
+      train_cache_.clear();
+    }
     auto result = trains_.find(train_id);
     auto inserted = train_cache_.insert({train_id, result[0]});
     return inserted.first->second;
+  }
+
+  bool TrainSystem::cache_train(const my_string &train_id, const Train *&out_train) {
+    auto it = train_cache_.find(train_id);
+    if (it != train_cache_.end()) {
+      out_train = &it->second;
+      return true;
+    }
+    if (train_cache_.size() >= kMaxTrainCache) {
+      train_cache_.clear();
+    }
+    auto result = trains_.find(train_id);
+    if (result.empty()) {
+      return false;
+    }
+    auto inserted = train_cache_.insert({train_id, result[0]});
+    out_train = &inserted.first->second;
+    return true;
   }
 
   bool TrainSystem::add_train(const Train &train) {
@@ -32,15 +59,11 @@ namespace sjtu {
   }
 
   bool TrainSystem::delete_train(const my_string &train_id) {
-    auto cache_it = train_cache_.find(train_id);
-    if (cache_it == train_cache_.end()) {
-      auto trains = trains_.find(train_id);
-      if (trains.empty()) {
-        return false;
-      }
-      cache_it = train_cache_.insert({train_id, trains[0]}).first;
+    const Train *train_ptr;
+    if (!cache_train(train_id, train_ptr)) {
+      return false;
     }
-    const auto &train = cache_it->second;
+    const auto &train = *train_ptr;
     if (!seats_.find({train_id, train.get_sales_date(0)}).empty()) {
       return false;
     }
@@ -50,15 +73,11 @@ namespace sjtu {
   }
 
   bool TrainSystem::release_train(const my_string &train_id) {
-    auto cache_it = train_cache_.find(train_id);
-    if (cache_it == train_cache_.end()) {
-      auto trains = trains_.find(train_id);
-      if (trains.empty()) {
-        return false;
-      }
-      cache_it = train_cache_.insert({train_id, trains[0]}).first;
+    const Train *train_ptr;
+    if (!cache_train(train_id, train_ptr)) {
+      return false;
     }
-    auto train = cache_it->second;
+    auto train = *train_ptr;
     if (!seats_.find({train_id, train.get_sales_date(0)}).empty()) {
       return false;
     }
@@ -79,16 +98,12 @@ namespace sjtu {
   }
 
   void TrainSystem::query_train(const my_string &train_id, int date) {
-    auto cache_it = train_cache_.find(train_id);
-    if (cache_it == train_cache_.end()) {
-      auto trains = trains_.find(train_id);
-      if (trains.empty()) {
-        std::cout << "-1" << '\n';
-        return;
-      }
-      cache_it = train_cache_.insert({train_id, trains[0]}).first;
+    const Train *train_ptr;
+    if (!cache_train(train_id, train_ptr)) {
+      std::cout << "-1" << '\n';
+      return;
     }
-    const auto &train = cache_it->second;
+    const auto &train = *train_ptr;
     if (date < train.get_sales_date(0) || date > train.get_sales_date(1)) {
       std::cout << "-1" << '\n';
       return;
@@ -144,16 +159,12 @@ namespace sjtu {
       auto [train_id1, index1] = starts[i];
       auto [train_id2, index2] = ends[j];
       if (train_id1 == train_id2) {
-        auto it = train_cache_.find(train_id1);
-        if (it == train_cache_.end()) {
-          auto train_list = trains_.find(train_id1);
-          if (train_list.empty()) {
-            ++i;
-            continue;
-          }
-          it = train_cache_.insert({train_id1, train_list[0]}).first;
+        const Train *train_ptr;
+        if (!cache_train(train_id1, train_ptr)) {
+          ++i;
+          continue;
         }
-        const auto &train = it->second;
+        const auto &train = *train_ptr;
         if (index1 >= index2) {
           ++i;
           continue;
@@ -240,15 +251,9 @@ namespace sjtu {
     vector<char> end_valid;
     for (int i = 0; i < ends.size(); ++i) {
       const auto &train_id = ends[i].first;
-      auto cache_it = train_cache_.find(train_id);
-      if (cache_it == train_cache_.end()) {
-        auto end_train_list = trains_.find(train_id);
-        if (!end_train_list.empty()) {
-          cache_it = train_cache_.insert({train_id, end_train_list[0]}).first;
-        }
-      }
-      if (cache_it != train_cache_.end()) {
-        end_trains.push_back(cache_it->second);
+      const Train *train_ptr;
+      if (cache_train(train_id, train_ptr)) {
+        end_trains.push_back(*train_ptr);
         end_valid.push_back(1);
       } else {
         end_trains.push_back(Train());
@@ -289,15 +294,11 @@ namespace sjtu {
     } best;
 
     for (auto &[start_train_id, start_index] : starts) {
-      auto cache_it = train_cache_.find(start_train_id);
-      if (cache_it == train_cache_.end()) {
-        auto start_train_list = trains_.find(start_train_id);
-        if (start_train_list.empty()) {
-          continue;
-        }
-        cache_it = train_cache_.insert({start_train_id, start_train_list[0]}).first;
+      const Train *train_ptr;
+      if (!cache_train(start_train_id, train_ptr)) {
+        continue;
       }
-      const auto &start_train = cache_it->second;
+      const auto &start_train = *train_ptr;
 
       int start_departure_offset = start_train.get_start_time() + start_train.get_travel_time(start_index)
         + start_train.get_stopover_time(start_index);
@@ -444,6 +445,11 @@ namespace sjtu {
     orders_.clear();
     orders_by_user_.clear();
     orders_by_train_.clear();
+    station_cache_map_.clear();
+    train_cache_.clear();
+  }
+
+  void TrainSystem::clear_caches() {
     station_cache_map_.clear();
     train_cache_.clear();
   }

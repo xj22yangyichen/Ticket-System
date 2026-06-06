@@ -29,7 +29,7 @@ private:
   std::string size_file_name;
   int tree_size = 0;
 
-  static const int kCacheSize = 256;
+  static const int kCacheSize = 32;
   struct CacheEntry {
     int pos;
     Node node;

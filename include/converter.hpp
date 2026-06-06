@@ -10,6 +10,10 @@ inline int date_to_int(const std::string &date_str) {
   // if (date_str == "xx-xx") return 0;
   int month = (date_str[0] - '0') * 10 + (date_str[1] - '0');
   int day = (date_str[3] - '0') * 10 + (date_str[4] - '0');
+  // Dates before June are invalid for queries (map to 0, which will fail sales-date checks)
+  if (month < 6) {
+    return 0;
+  }
   if (month == 8) {
     return 61 + day;
   }
@@ -20,6 +24,7 @@ inline int date_to_int(const std::string &date_str) {
 }
 inline std::string int_to_date(int date_int) {
   // if (date_int == 0) return "xx-xx";
+  if (date_int <= 0) return "xx-xx";
   int month = 0;
   int day = 0;
   if (date_int <= 30) {

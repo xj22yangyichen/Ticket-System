@@ -13,6 +13,16 @@ namespace sjtu {
     return inserted.first->second;
   }
 
+  const Train &TrainSystem::GetTrain(const my_string &train_id) {
+    auto it = train_cache_.find(train_id);
+    if (it != train_cache_.end()) {
+      return it->second;
+    }
+    auto result = trains_.find(train_id);
+    auto inserted = train_cache_.insert({train_id, result[0]});
+    return inserted.first->second;
+  }
+
   bool TrainSystem::add_train(const Train &train) {
     if (!trains_.find(train.get_train_id()).empty()) {
       return false;
@@ -22,24 +32,33 @@ namespace sjtu {
   }
 
   bool TrainSystem::delete_train(const my_string &train_id) {
-    auto trains = trains_.find(train_id);
-    if (trains.empty()) {
-      return false;
+    auto cache_it = train_cache_.find(train_id);
+    if (cache_it == train_cache_.end()) {
+      auto trains = trains_.find(train_id);
+      if (trains.empty()) {
+        return false;
+      }
+      cache_it = train_cache_.insert({train_id, trains[0]}).first;
     }
-    auto train = trains[0];
+    const auto &train = cache_it->second;
     if (!seats_.find({train_id, train.get_sales_date(0)}).empty()) {
       return false;
     }
     trains_.erase(train_id, train);
+    train_cache_.erase(train_id);
     return true;
   }
 
   bool TrainSystem::release_train(const my_string &train_id) {
-    auto trains = trains_.find(train_id);
-    if (trains.empty()) {
-      return false;
+    auto cache_it = train_cache_.find(train_id);
+    if (cache_it == train_cache_.end()) {
+      auto trains = trains_.find(train_id);
+      if (trains.empty()) {
+        return false;
+      }
+      cache_it = train_cache_.insert({train_id, trains[0]}).first;
     }
-    auto train = trains[0];
+    auto train = cache_it->second;
     if (!seats_.find({train_id, train.get_sales_date(0)}).empty()) {
       return false;
     }
@@ -48,6 +67,7 @@ namespace sjtu {
     train.release();
     trains_.erase(train_id, old_train);
     trains_.insert(train_id, train);
+    train_cache_.erase(train_id);
     station_cache_map_.clear();
     for (int i = 0; i < train.get_station_num(); ++i) {
       stations_.insert(train.get_station(i), {train_id, i});
@@ -59,12 +79,16 @@ namespace sjtu {
   }
 
   void TrainSystem::query_train(const my_string &train_id, int date) {
-    auto trains = trains_.find(train_id);
-    if (trains.empty()) {
-      std::cout << "-1" << '\n';
-      return;
+    auto cache_it = train_cache_.find(train_id);
+    if (cache_it == train_cache_.end()) {
+      auto trains = trains_.find(train_id);
+      if (trains.empty()) {
+        std::cout << "-1" << '\n';
+        return;
+      }
+      cache_it = train_cache_.insert({train_id, trains[0]}).first;
     }
-    auto train = trains[0];
+    const auto &train = cache_it->second;
     if (date < train.get_sales_date(0) || date > train.get_sales_date(1)) {
       std::cout << "-1" << '\n';
       return;
@@ -114,21 +138,20 @@ namespace sjtu {
     
     // use two pointers to find all trains that pass through start_station and end_station in order
     vector<TicketInfo> tickets;
-    std::map<my_string, Train> train_cache;
     int n = starts.size(), m = ends.size();
     int i = 0, j = 0;
     while (i < n && j < m) {
       auto [train_id1, index1] = starts[i];
       auto [train_id2, index2] = ends[j];
       if (train_id1 == train_id2) {
-        auto it = train_cache.find(train_id1);
-        if (it == train_cache.end()) {
+        auto it = train_cache_.find(train_id1);
+        if (it == train_cache_.end()) {
           auto train_list = trains_.find(train_id1);
           if (train_list.empty()) {
             ++i;
             continue;
           }
-          it = train_cache.insert({train_id1, train_list[0]}).first;
+          it = train_cache_.insert({train_id1, train_list[0]}).first;
         }
         const auto &train = it->second;
         if (index1 >= index2) {
@@ -216,9 +239,16 @@ namespace sjtu {
     vector<Train> end_trains;
     vector<char> end_valid;
     for (int i = 0; i < ends.size(); ++i) {
-      auto end_train_list = trains_.find(ends[i].first);
-      if (!end_train_list.empty()) {
-        end_trains.push_back(end_train_list[0]);
+      const auto &train_id = ends[i].first;
+      auto cache_it = train_cache_.find(train_id);
+      if (cache_it == train_cache_.end()) {
+        auto end_train_list = trains_.find(train_id);
+        if (!end_train_list.empty()) {
+          cache_it = train_cache_.insert({train_id, end_train_list[0]}).first;
+        }
+      }
+      if (cache_it != train_cache_.end()) {
+        end_trains.push_back(cache_it->second);
         end_valid.push_back(1);
       } else {
         end_trains.push_back(Train());
@@ -259,11 +289,15 @@ namespace sjtu {
     } best;
 
     for (auto &[start_train_id, start_index] : starts) {
-      auto start_train_list = trains_.find(start_train_id);
-      if (start_train_list.empty()) {
-        continue;
+      auto cache_it = train_cache_.find(start_train_id);
+      if (cache_it == train_cache_.end()) {
+        auto start_train_list = trains_.find(start_train_id);
+        if (start_train_list.empty()) {
+          continue;
+        }
+        cache_it = train_cache_.insert({start_train_id, start_train_list[0]}).first;
       }
-      auto start_train = start_train_list[0];
+      const auto &start_train = cache_it->second;
 
       int start_departure_offset = start_train.get_start_time() + start_train.get_travel_time(start_index)
         + start_train.get_stopover_time(start_index);
@@ -328,19 +362,6 @@ namespace sjtu {
           int arriving_date = candidate_start_date + arriving_offset / 1440;
           int arriving_time = arriving_offset % 1440;
 
-          auto end_seats_list = seats_.find({train_id1, candidate_start_date});
-          if (end_seats_list.empty()) {
-            continue;
-          }
-          auto end_seats = end_seats_list[0];
-          int seat2_min = 100000;
-          for (int k = transfer_index; k < end_index; ++k) {
-            seat2_min = min(seat2_min, end_seats.remain_seats_[k]);
-            if (seat2_min == 0) {
-              break;
-            }
-          }
-
           int price1 = start_train.get_price(i) - start_train.get_price(start_index);
           int price2 = end_train.get_price(end_index) - end_train.get_price(transfer_index);
           int total_price = price1 + price2;
@@ -366,6 +387,19 @@ namespace sjtu {
           }
 
           if (better) {
+            auto end_seats_list = seats_.find({train_id1, candidate_start_date});
+            if (end_seats_list.empty()) {
+              continue;
+            }
+            auto end_seats = end_seats_list[0];
+            int seat2_min = 100000;
+            for (int k = transfer_index; k < end_index; ++k) {
+              seat2_min = min(seat2_min, end_seats.remain_seats_[k]);
+              if (seat2_min == 0) {
+                break;
+              }
+            }
+
             best.valid = true;
             best.train_id1 = start_train_id;
             best.train_id2 = train_id1;
@@ -411,5 +445,6 @@ namespace sjtu {
     orders_by_user_.clear();
     orders_by_train_.clear();
     station_cache_map_.clear();
+    train_cache_.clear();
   }
 }

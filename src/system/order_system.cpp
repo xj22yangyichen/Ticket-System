@@ -7,12 +7,16 @@ namespace sjtu {
   void TrainSystem::buy_ticket(int timestamp, const my_string &username, const my_string &train_id, int date, 
     const my_string &from, const my_string &to, int num_tickets, bool waitlist_willness) {
       int from_index = -1, to_index = -1;
-      auto trains = trains_.find(train_id);
-      if (trains.empty()) {
-        std::cout << "-1" << '\n';
-        return;
+      auto cache_it = train_cache_.find(train_id);
+      if (cache_it == train_cache_.end()) {
+        auto trains = trains_.find(train_id);
+        if (trains.empty()) {
+          std::cout << "-1" << '\n';
+          return;
+        }
+        cache_it = train_cache_.insert({train_id, trains[0]}).first;
       }
-      auto train = trains[0];
+      const auto &train = cache_it->second;
       if (seats_.find({train_id, train.get_sales_date(0)}).empty()) {
         std::cout << "-1" << '\n';
         return;
@@ -81,7 +85,7 @@ namespace sjtu {
     }
     for (auto it = timestamps.rbegin(); it != timestamps.rend(); ++it) {
       auto order = orders_.find(*it)[0];
-      auto train = trains_.find(order.get_train_id())[0];
+      const auto &train = GetTrain(order.get_train_id());
       std::cout << order_status_to_string(order.get_status()) << " " << order.get_train_id() << " "
         << order.get_from() << " " << int_to_date(order.get_start_date() + (train.get_start_time() + 
           train.get_travel_time(order.get_from_index()) + train.get_stopover_time(order.get_from_index())) / 1440) 
@@ -103,15 +107,13 @@ namespace sjtu {
     auto order = orders_.find(timestamps[timestamps.size() - nth])[0];
     if (order.get_status() == PENDING) {
       orders_.erase(order.get_timestamp(), order);
-      auto train = trains_.find(order.get_train_id())[0];
       orders_by_train_.erase({order.get_train_id(), order.get_start_date()}, order.get_timestamp());
       std::cout << 0 << '\n';
       order.set_status(REFUNDED);
       orders_.insert(order.get_timestamp(), order);
     }
-    
+
     else if (order.get_status() == SUCCESS) {
-      auto train = trains_.find(order.get_train_id())[0];
       auto seat_status = seats_.find({order.get_train_id(), order.get_start_date()})[0];
       seats_.erase({order.get_train_id(), order.get_start_date()}, seat_status);
       for (int i = order.get_from_index(); i < order.get_to_index(); ++i) {

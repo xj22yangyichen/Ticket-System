@@ -2,3 +2,5 @@ build/
 .vscode/
 data/
 testcases/
+run_tests_with_limits.py
+run_tests.py

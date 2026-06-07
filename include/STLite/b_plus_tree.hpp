@@ -29,7 +29,7 @@ private:
   std::string size_file_name;
   int tree_size = 0;
 
-  static const int kCacheSize = 32;
+  static const int kCacheSize = 24;
   struct CacheEntry {
     int pos;
     Node node;
@@ -71,6 +71,21 @@ private:
     return false;
   }
 
+  // Read-only access: returns pointer into cache (no copy)
+  const Node *extract_node_ptr(int pos) {
+    for (int i = 0; i < kCacheSize; ++i) {
+      if (cache[i].valid && cache[i].pos == pos) {
+        return &cache[i].node;
+      }
+    }
+    cache[cache_ptr].pos = pos;
+    node_pool.read(cache[cache_ptr].node, pos);
+    cache[cache_ptr].valid = true;
+    const Node *result = &cache[cache_ptr].node;
+    cache_ptr = (cache_ptr + 1) % kCacheSize;
+    return result;
+  }
+  // Read-write access: returns a copy (for modifications)
   Node extract_node(int pos) {
     Node node;
     if (cache_load(pos, node)) return node;
@@ -115,11 +130,11 @@ private:
   int find_leaf(const value_type &key) {
     int pos = extract_root();
     while (true) {
-      Node node = extract_node(pos);
-      if (node.is_leaf) return pos;
+      const Node *node = extract_node_ptr(pos);
+      if (node->is_leaf) return pos;
       int i = 0;
-      while (i < node.size && key >= node.keys[i]) ++i;
-      pos = node.children[i];
+      while (i < node->size && key >= node->keys[i]) ++i;
+      pos = node->children[i];
     }
   }
 
@@ -460,15 +475,15 @@ public:
     int leaf_pos = find_leaf(kv);
     sjtu::vector<T> result;
     while (leaf_pos != -1) {
-      Node leaf = extract_node(leaf_pos);
-      for (int i = 0; i < leaf.size; ++i) {
-        if (leaf.keys[i].first == key) {
-          result.push_back(leaf.keys[i].second);
-        } else if (leaf.keys[i].first > key) {
+      const Node *leaf = extract_node_ptr(leaf_pos);
+      for (int i = 0; i < leaf->size; ++i) {
+        if (leaf->keys[i].first == key) {
+          result.push_back(leaf->keys[i].second);
+        } else if (leaf->keys[i].first > key) {
           return result;
         }
       }
-      leaf_pos = leaf.next;
+      leaf_pos = leaf->next;
     }
     return result;
   }
@@ -479,13 +494,13 @@ public:
     int leaf_pos = find_leaf(kv1);
     sjtu::vector<T> result;
     while (leaf_pos != -1) {
-      Node leaf = extract_node(leaf_pos);
-      for (int i = 0; i < leaf.size; ++i) {
-        if (leaf.keys[i].first < key1) continue;
-        if (leaf.keys[i].first >= key2) return result;
-        result.push_back(leaf.keys[i].second);
+      const Node *leaf = extract_node_ptr(leaf_pos);
+      for (int i = 0; i < leaf->size; ++i) {
+        if (leaf->keys[i].first < key1) continue;
+        if (leaf->keys[i].first >= key2) return result;
+        result.push_back(leaf->keys[i].second);
       }
-      leaf_pos = leaf.next;
+      leaf_pos = leaf->next;
     }
     return result;
   }

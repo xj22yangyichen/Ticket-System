@@ -16,10 +16,9 @@ private:
   // key: (train_id, date), value: SeatStatus
   b_plus_tree<pair<my_string, int>, SeatStatus, 48> seats_;
 
-  map<my_string, vector<pair<my_string, int>>> station_cache_map_;
   map<my_string, Train> train_cache_;
 
-  const vector<pair<my_string, int>> &GetStations(const my_string &station);
+  vector<pair<my_string, int>> GetStations(const my_string &station);
   const Train &GetTrain(const my_string &train_id);
   bool cache_train(const my_string &train_id, const Train *&out_train);
 
@@ -58,9 +57,8 @@ private:
   b_plus_tree<pair<my_string, int>, int, 32> orders_by_train_;
 
 public:
-  TrainSystem() : trains_("trains.dat"), stations_("stations.dat"), seats_("seats.dat"), 
-    orders_("orders.dat"), orders_by_user_("orders_by_user.dat"), orders_by_train_("orders_by_train.dat"),
-    station_cache_map_() {}
+  TrainSystem() : trains_("trains.dat"), stations_("stations.dat"), seats_("seats.dat"),
+    orders_("orders.dat"), orders_by_user_("orders_by_user.dat"), orders_by_train_("orders_by_train.dat") {}
 
   bool add_train(const Train &train);
   bool delete_train(const my_string &train_id);

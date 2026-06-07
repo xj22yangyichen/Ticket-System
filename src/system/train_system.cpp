@@ -3,20 +3,10 @@
 #include "algorithm.hpp"
 
 namespace sjtu {
-  static const int kMaxTrainCache = 1500;
-  static const int kMaxStationCache = 800;
+  static const int kMaxTrainCache = 1000;
 
-  const vector<pair<my_string, int>> &TrainSystem::GetStations(const my_string &station) {
-    auto it = station_cache_map_.find(station);
-    if (it != station_cache_map_.end()) {
-      return it->second;
-    }
-    if (station_cache_map_.size() >= kMaxStationCache) {
-      station_cache_map_.clear();
-    }
-    auto result = stations_.find(station);
-    auto inserted = station_cache_map_.insert({station, result});
-    return inserted.first->second;
+  vector<pair<my_string, int>> TrainSystem::GetStations(const my_string &station) {
+    return stations_.find(station);
   }
 
   const Train &TrainSystem::GetTrain(const my_string &train_id) {
@@ -89,7 +79,6 @@ namespace sjtu {
     trains_.insert(train_id, train);
     auto cache_it2 = train_cache_.find(train_id);
     if (cache_it2 != train_cache_.end()) train_cache_.erase(cache_it2);
-    station_cache_map_.clear();
     for (int i = 0; i < train.get_station_num(); ++i) {
       stations_.insert(train.get_station(i), {train_id, i});
     }
@@ -443,12 +432,10 @@ namespace sjtu {
     orders_.clear();
     orders_by_user_.clear();
     orders_by_train_.clear();
-    station_cache_map_.clear();
     train_cache_.clear();
   }
 
   void TrainSystem::clear_caches() {
-    station_cache_map_.clear();
     train_cache_.clear();
   }
 }

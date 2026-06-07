@@ -4,7 +4,7 @@
 
 namespace sjtu {
   static const int kMaxTrainCache = 1500;
-  static const int kMaxStationCache = 1000;
+  static const int kMaxStationCache = 800;
 
   const vector<pair<my_string, int>> &TrainSystem::GetStations(const my_string &station) {
     auto it = station_cache_map_.find(station);
@@ -112,39 +112,38 @@ namespace sjtu {
     }
 
     int station_num = train.get_station_num();
-    int start_time = train.get_start_time();
     std::cout << train.get_train_id() << " " << train.get_type() << '\n';
     auto seats_for_date = seats_.find({train_id, date});
     if (seats_for_date.empty()) {
       std::cout << train.get_station(0) << " xx-xx xx:xx -> " << int_to_date(date) << " "
-        << int_to_time(start_time) << " " << train.get_price(0) << " " << train.get_seat_num() << '\n';
+        << int_to_time(train.get_depart(0)) << " " << train.get_price(0) << " " << train.get_seat_num() << '\n';
       for (int i = 1; i < station_num - 1; ++i) {
         std::cout << train.get_station(i) << " "
-          << int_to_date(date + (start_time + train.get_travel_time(i)) / 1440) << " "
-          << int_to_time((start_time + train.get_travel_time(i)) % 1440) << " -> "
-          << int_to_date(date + (start_time + train.get_travel_time(i) + train.get_stopover_time(i)) / 1440) << " "
-          << int_to_time((start_time + train.get_travel_time(i) + train.get_stopover_time(i)) % 1440) << " "
+          << int_to_date(date + train.get_arrive(i) / 1440) << " "
+          << int_to_time(train.get_arrive(i) % 1440) << " -> "
+          << int_to_date(date + train.get_depart(i) / 1440) << " "
+          << int_to_time(train.get_depart(i) % 1440) << " "
           << train.get_price(i) << " " << train.get_seat_num() << '\n';
       }
       std::cout << train.get_station(station_num - 1) << " "
-        << int_to_date(date + (start_time + train.get_travel_time(station_num - 1)) / 1440) << " "
-        << int_to_time((start_time + train.get_travel_time(station_num - 1)) % 1440) << " -> xx-xx xx:xx "
+        << int_to_date(date + train.get_arrive(station_num - 1) / 1440) << " "
+        << int_to_time(train.get_arrive(station_num - 1) % 1440) << " -> xx-xx xx:xx "
         << train.get_price(station_num - 1) << " x" << '\n';
     } else {
       auto seats = seats_for_date[0];
       std::cout << train.get_station(0) << " xx-xx xx:xx -> " << int_to_date(date) << " "
-        << int_to_time(start_time) << " " << train.get_price(0) << " " << seats.remain_seats_[0] << '\n';
+        << int_to_time(train.get_depart(0)) << " " << train.get_price(0) << " " << seats.remain_seats_[0] << '\n';
       for (int i = 1; i < station_num - 1; ++i) {
         std::cout << train.get_station(i) << " "
-          << int_to_date(date + (start_time + train.get_travel_time(i)) / 1440) << " "
-          << int_to_time((start_time + train.get_travel_time(i)) % 1440) << " -> "
-          << int_to_date(date + (start_time + train.get_travel_time(i) + train.get_stopover_time(i)) / 1440) << " "
-          << int_to_time((start_time + train.get_travel_time(i) + train.get_stopover_time(i)) % 1440) << " "
+          << int_to_date(date + train.get_arrive(i) / 1440) << " "
+          << int_to_time(train.get_arrive(i) % 1440) << " -> "
+          << int_to_date(date + train.get_depart(i) / 1440) << " "
+          << int_to_time(train.get_depart(i) % 1440) << " "
           << train.get_price(i) << " " << seats.remain_seats_[i] << '\n';
       }
       std::cout << train.get_station(station_num - 1) << " "
-        << int_to_date(date + (start_time + train.get_travel_time(station_num - 1)) / 1440) << " "
-        << int_to_time((start_time + train.get_travel_time(station_num - 1)) % 1440) << " -> xx-xx xx:xx "
+        << int_to_date(date + train.get_arrive(station_num - 1) / 1440) << " "
+        << int_to_time(train.get_arrive(station_num - 1) % 1440) << " -> xx-xx xx:xx "
         << train.get_price(station_num - 1) << " x" << '\n';
     }
   }
@@ -176,8 +175,7 @@ namespace sjtu {
         the date of departure from the origin station, so we need to calculate 
         the date of departure from start_station and check if it is within the sales date
         */
-        int departure_offset = train.get_start_time() + train.get_travel_time(index1)
-          + train.get_stopover_time(index1);
+        int departure_offset = train.get_depart(index1);
         int start_date = date - departure_offset / 1440;
         if (start_date < train.get_sales_date(0) || start_date > train.get_sales_date(1)) {
           ++i;
@@ -201,7 +199,7 @@ namespace sjtu {
         //   continue;
         // }
         int leaving_time = departure_offset % 1440;
-        int arriving_offset = train.get_start_time() + train.get_travel_time(index2);
+        int arriving_offset = train.get_arrive(index2);
         int arriving_date = start_date + arriving_offset / 1440;
         int arriving_time = arriving_offset % 1440;
         tickets.push_back(TicketInfo(train_id1, leaving_time, arriving_date, arriving_time, 
@@ -302,8 +300,7 @@ namespace sjtu {
       }
       const auto &start_train = *train_ptr;
 
-      int start_departure_offset = start_train.get_start_time() + start_train.get_travel_time(start_index)
-        + start_train.get_stopover_time(start_index);
+      int start_departure_offset = start_train.get_depart(start_index);
       int start_date = date - start_departure_offset / 1440;
       if (start_date < start_train.get_sales_date(0) || start_date > start_train.get_sales_date(1)) {
         continue;
@@ -336,12 +333,11 @@ namespace sjtu {
             continue;
           }
           auto &end_train = end_trains[end_pos];
-          int transfer_arriving_offset = start_train.get_start_time() + start_train.get_travel_time(i);
+          int transfer_arriving_offset = start_train.get_arrive(i);
           int transfer_arriving_date = start_date + transfer_arriving_offset / 1440;
           int transfer_arriving_time = transfer_arriving_offset % 1440;
 
-          int transfer_departure_offset = end_train.get_start_time() + end_train.get_travel_time(transfer_index)
-            + end_train.get_stopover_time(transfer_index);
+          int transfer_departure_offset = end_train.get_depart(transfer_index);
           int transfer_departure_time = transfer_departure_offset % 1440;
 
           int candidate_start_date = transfer_arriving_date - transfer_departure_offset / 1440;
@@ -361,7 +357,7 @@ namespace sjtu {
             continue;
           }
 
-          int arriving_offset = end_train.get_start_time() + end_train.get_travel_time(end_index);
+          int arriving_offset = end_train.get_arrive(end_index);
           int arriving_date = candidate_start_date + arriving_offset / 1440;
           int arriving_time = arriving_offset % 1440;
 

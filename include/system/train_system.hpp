@@ -14,7 +14,7 @@ private:
   // key: station, value: (train_id, station_index)
   b_plus_tree<my_string, pair<my_string, int>> stations_;
   // key: (train_id, date), value: SeatStatus
-  b_plus_tree<pair<my_string, int>, SeatStatus> seats_;
+  b_plus_tree<pair<my_string, int>, SeatStatus, 48> seats_;
 
   map<my_string, vector<pair<my_string, int>>> station_cache_map_;
   map<my_string, Train> train_cache_;
@@ -50,12 +50,12 @@ private:
   };
 
   // key: timestamp, value: Order
-  b_plus_tree<int, Order> orders_;
+  b_plus_tree<int, Order, 48> orders_;
   // key: username, value: timestamp
-  b_plus_tree<my_string, int> orders_by_user_;
+  b_plus_tree<my_string, int, 32> orders_by_user_;
   // waitlist
   // key: (train_id, start_date), value: timestamp
-  b_plus_tree<pair<my_string, int>, int> orders_by_train_;
+  b_plus_tree<pair<my_string, int>, int, 32> orders_by_train_;
 
 public:
   TrainSystem() : trains_("trains.dat"), stations_("stations.dat"), seats_("seats.dat"), 

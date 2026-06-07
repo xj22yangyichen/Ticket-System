@@ -34,8 +34,7 @@ namespace sjtu {
         return;
       }
 
-      int start_date = date - (train.get_start_time() + 
-        train.get_travel_time(from_index) + train.get_stopover_time(from_index)) / 1440;
+      int start_date = date - train.get_depart(from_index) / 1440;
       if (start_date < train.get_sales_date(0) || start_date > train.get_sales_date(1)) {
         std::cout << "-1" << '\n';
         return;
@@ -83,13 +82,10 @@ namespace sjtu {
       auto order = orders_.find(*it)[0];
       const auto &train = GetTrain(order.get_train_id());
       std::cout << order_status_to_string(order.get_status()) << " " << order.get_train_id() << " "
-        << order.get_from() << " " << int_to_date(order.get_start_date() + (train.get_start_time() + 
-          train.get_travel_time(order.get_from_index()) + train.get_stopover_time(order.get_from_index())) / 1440) 
-        << " " << int_to_time((train.get_start_time() + train.get_travel_time(order.get_from_index()) + 
-          train.get_stopover_time(order.get_from_index())) % 1440) << " -> " 
-        << order.get_to() << " " << int_to_date(order.get_start_date() + (train.get_start_time() + 
-          train.get_travel_time(order.get_to_index())) / 1440) 
-        << " " << int_to_time((train.get_start_time() + train.get_travel_time(order.get_to_index())) % 1440) 
+        << order.get_from() << " " << int_to_date(order.get_start_date() + train.get_depart(order.get_from_index()) / 1440)
+        << " " << int_to_time(train.get_depart(order.get_from_index()) % 1440) << " -> "
+        << order.get_to() << " " << int_to_date(order.get_start_date() + train.get_arrive(order.get_to_index()) / 1440)
+        << " " << int_to_time(train.get_arrive(order.get_to_index()) % 1440)
         << " " << order.get_price() << " " << order.get_num_tickets() << '\n';
     }
   }

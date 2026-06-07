@@ -18,19 +18,22 @@ namespace sjtu {
 class Order {
 private:
   my_string username_, train_id_, from_, to_;
-  int start_date_, num_tickets_, price_, timestamp_, from_index_, to_index_;
+  short start_date_;
+  int num_tickets_, price_, timestamp_;
+  char from_index_, to_index_;
   OrderStatus status_;
 
 public:
-  Order() : username_(), train_id_(), from_(), to_(), start_date_(0), num_tickets_(0), price_(0), 
+  Order() : username_(), train_id_(), from_(), to_(), start_date_(0), num_tickets_(0), price_(0),
     timestamp_(0), from_index_(0), to_index_(0), status_(PENDING) {}
   Order(const my_string &username, const my_string &train_id, const my_string &from, const my_string &to,
     int start_date, int num_tickets, int price, int time, int from_index, int to_index, OrderStatus status)
-    : username_(username), train_id_(train_id), from_(from), to_(to), start_date_(start_date), num_tickets_(num_tickets), 
-      price_(price), timestamp_(time), from_index_(from_index), to_index_(to_index), status_(status) {}
+    : username_(username), train_id_(train_id), from_(from), to_(to), start_date_(static_cast<short>(start_date)),
+      num_tickets_(num_tickets), price_(price), timestamp_(time),
+      from_index_(static_cast<char>(from_index)), to_index_(static_cast<char>(to_index)), status_(status) {}
   Order(const Order &other)
     : username_(other.username_), train_id_(other.train_id_), from_(other.from_), to_(other.to_),
-      start_date_(other.start_date_), num_tickets_(other.num_tickets_), price_(other.price_), timestamp_(other.timestamp_), 
+      start_date_(other.start_date_), num_tickets_(other.num_tickets_), price_(other.price_), timestamp_(other.timestamp_),
       from_index_(other.from_index_), to_index_(other.to_index_), status_(other.status_) {}
 
   Order &operator=(const Order &other) {

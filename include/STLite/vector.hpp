@@ -637,7 +637,7 @@ public:
    */
   void grow() {
     size_t old_size = size();
-    size_t new_capacity = old_size == 0 ? 1 : old_size * 2;
+    size_t new_capacity = old_size == 0 ? 4 : old_size + old_size / 2;
     T* new_start = _alloc.allocate(new_capacity);
     for (size_t i = 0; i < old_size; ++i) {
       _alloc.construct(new_start + i, _start[i]);

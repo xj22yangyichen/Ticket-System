@@ -29,7 +29,7 @@ private:
   std::string size_file_name;
   int tree_size = 0;
 
-  static const int kCacheSize = 24;
+  static const int kCacheSize = 38;
   struct CacheEntry {
     int pos;
     Node node;
@@ -38,17 +38,25 @@ private:
   };
   CacheEntry cache[kCacheSize];
   int cache_ptr = 0;
+  mutable int last_hit_idx = 0;  // fast path for repeated access
 
   void cache_store(int pos, const Node &node) {
+    // Fast path: update existing entry
+    if (cache[last_hit_idx].valid && cache[last_hit_idx].pos == pos) {
+      cache[last_hit_idx].node = node;
+      return;
+    }
     for (int i = 0; i < kCacheSize; ++i) {
       if (cache[i].valid && cache[i].pos == pos) {
         cache[i].node = node;
+        last_hit_idx = i;
         return;
       }
     }
     cache[cache_ptr].pos = pos;
     cache[cache_ptr].node = node;
     cache[cache_ptr].valid = true;
+    last_hit_idx = cache_ptr;
     cache_ptr = (cache_ptr + 1) % kCacheSize;
   }
 
@@ -59,12 +67,18 @@ private:
       cache[i].valid = false;
     }
     cache_ptr = 0;
+    last_hit_idx = 0;
   }
 
   bool cache_load(int pos, Node &node) const {
+    if (cache[last_hit_idx].valid && cache[last_hit_idx].pos == pos) {
+      node = cache[last_hit_idx].node;
+      return true;
+    }
     for (int i = 0; i < kCacheSize; ++i) {
       if (cache[i].valid && cache[i].pos == pos) {
         node = cache[i].node;
+        last_hit_idx = i;
         return true;
       }
     }
@@ -73,14 +87,19 @@ private:
 
   // Read-only access: returns pointer into cache (no copy)
   const Node *extract_node_ptr(int pos) {
+    if (cache[last_hit_idx].valid && cache[last_hit_idx].pos == pos) {
+      return &cache[last_hit_idx].node;
+    }
     for (int i = 0; i < kCacheSize; ++i) {
       if (cache[i].valid && cache[i].pos == pos) {
+        last_hit_idx = i;
         return &cache[i].node;
       }
     }
     cache[cache_ptr].pos = pos;
     node_pool.read(cache[cache_ptr].node, pos);
     cache[cache_ptr].valid = true;
+    last_hit_idx = cache_ptr;
     const Node *result = &cache[cache_ptr].node;
     cache_ptr = (cache_ptr + 1) % kCacheSize;
     return result;

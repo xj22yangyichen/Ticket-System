@@ -16,6 +16,7 @@ private:
   // key: (train_id, date), value: SeatStatus
   b_plus_tree<pair<my_string, int>, SeatStatus, 48> seats_;
 
+  map<my_string, vector<pair<my_string, int>>> station_cache_;
   map<my_string, Train> train_cache_;
 
   vector<pair<my_string, int>> GetStations(const my_string &station);

@@ -3,10 +3,21 @@
 #include "algorithm.hpp"
 
 namespace sjtu {
-  static const int kMaxTrainCache = 1000;
+  static const int kMaxTrainCache = 550;
+  static const int kMaxStationCache = 100;
 
   vector<pair<my_string, int>> TrainSystem::GetStations(const my_string &station) {
-    return stations_.find(station);
+    if (kMaxStationCache > 0) {
+      auto it = station_cache_.find(station);
+      if (it != station_cache_.end()) {
+        return it->second;
+      }
+    }
+    auto result = stations_.find(station);
+    if (kMaxStationCache > 0 && station_cache_.size() < kMaxStationCache) {
+      station_cache_.insert({station, result});
+    }
+    return result;
   }
 
   const Train &TrainSystem::GetTrain(const my_string &train_id) {
@@ -14,12 +25,15 @@ namespace sjtu {
     if (it != train_cache_.end()) {
       return it->second;
     }
-    if (train_cache_.size() >= kMaxTrainCache) {
-      train_cache_.clear();
-    }
     auto result = trains_.find(train_id);
-    auto inserted = train_cache_.insert({train_id, result[0]});
-    return inserted.first->second;
+    if (train_cache_.size() < kMaxTrainCache) {
+      auto inserted = train_cache_.insert({train_id, result[0]});
+      return inserted.first->second;
+    }
+    // Cache full: return from B+ tree directly (caller must not hold ref across calls)
+    static Train fallback;
+    fallback = result[0];
+    return fallback;
   }
 
   bool TrainSystem::cache_train(const my_string &train_id, const Train *&out_train) {
@@ -28,15 +42,19 @@ namespace sjtu {
       out_train = &it->second;
       return true;
     }
-    if (train_cache_.size() >= kMaxTrainCache) {
-      train_cache_.clear();
-    }
     auto result = trains_.find(train_id);
     if (result.empty()) {
       return false;
     }
-    auto inserted = train_cache_.insert({train_id, result[0]});
-    out_train = &inserted.first->second;
+    if (train_cache_.size() < kMaxTrainCache) {
+      auto inserted = train_cache_.insert({train_id, result[0]});
+      out_train = &inserted.first->second;
+    } else {
+      // Cache full: return pointer to static (valid only until next GetTrain/cache_train call)
+      static Train fallback;
+      fallback = result[0];
+      out_train = &fallback;
+    }
     return true;
   }
 
@@ -79,6 +97,7 @@ namespace sjtu {
     trains_.insert(train_id, train);
     auto cache_it2 = train_cache_.find(train_id);
     if (cache_it2 != train_cache_.end()) train_cache_.erase(cache_it2);
+    station_cache_.clear();
     for (int i = 0; i < train.get_station_num(); ++i) {
       stations_.insert(train.get_station(i), {train_id, i});
     }
@@ -236,18 +255,10 @@ namespace sjtu {
       std::cout << "0" << '\n';
       return;
     }
-    vector<Train> end_trains;
-    vector<char> end_valid;
+    // Pre-check which end trains exist (store bool only, not full Train copies)
+    vector<char> end_exists;
     for (int i = 0; i < ends.size(); ++i) {
-      const auto &train_id = ends[i].first;
-      const Train *train_ptr;
-      if (cache_train(train_id, train_ptr)) {
-        end_trains.push_back(*train_ptr);
-        end_valid.push_back(1);
-      } else {
-        end_trains.push_back(Train());
-        end_valid.push_back(0);
-      }
+      end_exists.push_back(!trains_.find(ends[i].first).empty());
     }
     auto find_end_index = [&ends](const my_string &train_id) -> int {
       if (ends.empty()) {
@@ -318,10 +329,10 @@ namespace sjtu {
             continue;
           }
           int end_index = ends[end_pos].second;
-          if (!end_valid[end_pos] || transfer_index >= end_index) {
+          if (!end_exists[end_pos] || transfer_index >= end_index) {
             continue;
           }
-          auto &end_train = end_trains[end_pos];
+          const Train &end_train = GetTrain(ends[end_pos].first);
           int transfer_arriving_offset = start_train.get_arrive(i);
           int transfer_arriving_date = start_date + transfer_arriving_offset / 1440;
           int transfer_arriving_time = transfer_arriving_offset % 1440;
@@ -432,10 +443,12 @@ namespace sjtu {
     orders_.clear();
     orders_by_user_.clear();
     orders_by_train_.clear();
+    station_cache_.clear();
     train_cache_.clear();
   }
 
   void TrainSystem::clear_caches() {
+    station_cache_.clear();
     train_cache_.clear();
   }
 }

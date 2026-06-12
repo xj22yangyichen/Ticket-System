@@ -38,10 +38,9 @@ private:
   };
   CacheEntry cache[kCacheSize];
   int cache_ptr = 0;
-  mutable int last_hit_idx = 0;  // fast path for repeated access
+  mutable int last_hit_idx = 0;
 
   void cache_store(int pos, const Node &node) {
-    // Fast path: update existing entry
     if (cache[last_hit_idx].valid && cache[last_hit_idx].pos == pos) {
       cache[last_hit_idx].node = node;
       return;
@@ -85,7 +84,9 @@ private:
     return false;
   }
 
-  // Read-only access: returns pointer into cache (no copy)
+  /**
+   * Extract a pointer to a node from the cache or disk for reading.
+   */
   const Node *extract_node_ptr(int pos) {
     if (cache[last_hit_idx].valid && cache[last_hit_idx].pos == pos) {
       return &cache[last_hit_idx].node;
@@ -104,7 +105,9 @@ private:
     cache_ptr = (cache_ptr + 1) % kCacheSize;
     return result;
   }
-  // Read-write access: returns a copy (for modifications)
+  /**
+   * Extract a node from the cache or disk for both reading and writing.
+   */
   Node extract_node(int pos) {
     Node node;
     if (cache_load(pos, node)) return node;

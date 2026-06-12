@@ -19,8 +19,17 @@ private:
   map<my_string, vector<pair<my_string, int>>> station_cache_;
   map<my_string, Train> train_cache_;
 
+  /**
+   * Get the list of trains that stop at a given station and the index of the station in the train's route.
+   */
   vector<pair<my_string, int>> GetStations(const my_string &station);
+  /**
+   * Get the train with the given ID.
+   */
   const Train &GetTrain(const my_string &train_id);
+  /**
+   * Cache the train with the given ID.
+   */
   bool cache_train(const my_string &train_id, const Train *&out_train);
 
   struct TicketInfo {
@@ -61,21 +70,76 @@ public:
   TrainSystem() : trains_("trains.dat"), stations_("stations.dat"), seats_("seats.dat"),
     orders_("orders.dat"), orders_by_user_("orders_by_user.dat"), orders_by_train_("orders_by_train.dat") {}
 
+  /**
+   * Add a new train to the system.
+   */
   bool add_train(const Train &train);
+  /**
+   * Delete a train from the system.
+   */
   bool delete_train(const my_string &train_id);
+  /**
+   * Release a train from the system.
+   */
   bool release_train(const my_string &train_id);
+  /**
+   * Query information about a specific train.
+   * @param train_id The ID of the train to query.
+   * @param date The date for which to query information.
+   */
   void query_train(const my_string &train_id, int date);
-  // sort_by_time = true means sorting by departure time, otherwise sorting by price
+  /**
+   * Query tickets between two stations.
+   * @param start_station The starting station.
+   * @param end_station The destination station.
+   * @param date The date when the train departs from the starting station.
+   * @param sort_by_time - True: sort by departure time
+   *                     - False: sort by price
+   */
   void query_ticket(const my_string &start_station, const my_string &end_station, int date, bool sort_by_time);
+  /**
+   * Query transfer options between two stations.
+   * @param start_station The starting station.
+   * @param end_station The destination station.
+   * @param date The date when the train departs from the starting station.
+   * @param sort_by_time - True: sort by departure time
+   *                     - False: sort by price
+   */
   void query_transfer(const my_string &start_station, const my_string &end_station, int date, bool sort_by_time);
 
-  // the check of whether the user is logged in is not done in this function
+  /**
+   * Buy a ticket.
+   * @param timestamp The timestamp of the purchase.
+   * @param username The username of the buyer.
+   * @param train_id The ID of the train.
+   * @param date The date when the train departs from the starting station.
+   * @param from The starting station.
+   * @param to The destination station.
+   * @param num_tickets The number of tickets to buy.
+   * @param waitlist_willness Whether to add to the waitlist if no tickets are available.
+   * @note The check of whether the user is logged in is not done in this function.
+   */
   void buy_ticket(int timestamp, const my_string &username, const my_string &train_id, int date, 
     const my_string &from, const my_string &to, int num_tickets, bool waitlist_willness = false);
+  /**
+   * Query the orders of a user.
+   * @param username The username of the user.
+   */
   void query_order(const my_string &username);
+  /**
+   * Refund a ticket.
+   * @param username The username of the user.
+   * @param nth The nth ticket (the order of query_order) to refund.
+   */
   void refund_ticket(const my_string &username, int nth = 1);
 
+  /**
+   * Clear all data.
+   */
   void clear();
+  /**
+   * Clear all caches.
+   */
   void clear_caches();
 };
 }
